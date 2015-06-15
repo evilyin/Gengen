@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Gengen</string>
+    <string name="title_activity_main">MainActivity</string>
+    <string name="login">登录论坛</string>
+    <string name="go">搞起</string>
+    <string name="bbsDemo_oauth_success">登录成功</string>
+    <string name="bbsDemo_oauth_failed">登录失败</string>
+    <string name="bbsDemo_oauth_canceled">取消登录</string>
+
+</resources>
