@@ -11,7 +11,7 @@ import android.widget.Toast;
 
 import com.evilyin.gengen.AccessTokenKeeper;
 import com.evilyin.gengen.R;
-import com.evilyin.gengen.service.ScanService;
+import com.evilyin.gengen.service.MainService;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -28,6 +28,7 @@ import cn.byr.bbs.sdk.exception.BBSException;
 import cn.byr.bbs.sdk.net.RequestListener;
 
 /**
+ * 主界面
  * @author evilyin(ChenZhixi)
  * @since 2015-5-28
  */
@@ -70,7 +71,7 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 if (mAccessToken.isSessionValid()) {
-                    startService(new Intent(MainActivity.this, ScanService.class));
+                    startService(new Intent(MainActivity.this, MainService.class));
                 }else {
                     Toast.makeText(MainActivity.this, "请先登录", Toast.LENGTH_SHORT).show();
                 }
