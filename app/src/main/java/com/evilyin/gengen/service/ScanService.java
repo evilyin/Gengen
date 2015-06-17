@@ -2,9 +2,10 @@ package com.evilyin.gengen.service;
 
 import android.app.Service;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.Message;
 import android.util.Log;
 
 import com.evilyin.gengen.AccessTokenKeeper;
@@ -19,8 +20,6 @@ import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.net.URLEncoder;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import cn.byr.bbs.sdk.api.ArticleApi;
 import cn.byr.bbs.sdk.api.SearchApi;
@@ -43,52 +42,44 @@ public class ScanService extends Service {
     private static final int scanTime = 600;//搜索间隔时长（秒）
 
     private Oauth2AccessToken mAccessToken;
-    private Timer timer;
     private String resultUrl = "";
 
+    Handler handler =new Handler();
+    Runnable runnable=new Runnable() {
+        @Override
+        public void run() {
+            handler.postDelayed(this, scanTime * 1000);
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
+            SectionApi mSectionApi = new SectionApi(mAccessToken);
+            mSectionApi.getSection("4", new sectionListener());
+            mSectionApi.getSection("5", new sectionListener());
+            mSectionApi.getSection("6", new sectionListener());
+        }
+    };
 
     @Override
     public void onCreate() {
         Log.i("ScanService", "启动");
-
         mAccessToken = AccessTokenKeeper.readAccessToken(this);
-        final Handler handler = new Handler() {
-            @Override
-            public void handleMessage(Message msg) {
-                if (msg.what == 1) {
-                    SectionApi mSectionApi = new SectionApi(mAccessToken);
-                    mSectionApi.getSection("4", new sectionListener());
-                    mSectionApi.getSection("5", new sectionListener());
-                    mSectionApi.getSection("6", new sectionListener());
-                }
-                super.handleMessage(msg);
-            }
-        };
-        timer = new Timer();
-        TimerTask task = new TimerTask() {
-            @Override
-            public void run() {
-                Message message = new Message();
-                message.what = 1;
-                handler.sendMessage(message);
-            }
-        };
-        timer.schedule(task, 1000, scanTime * 1000);
+
+        ConnectivityManager connectivityManager = (ConnectivityManager) this.getSystemService(CONNECTIVITY_SERVICE);
+        NetworkInfo info = connectivityManager.getActiveNetworkInfo();
+        //判断wifi是否可用
+        if (info != null && info.isConnected() && info.getType() == ConnectivityManager.TYPE_WIFI) {
+            handler.post(runnable);
+        }
     }
 
     @Override
     public void onDestroy() {
-        if (timer != null) {
-            timer.cancel();
-            timer = null;
-        }
+        handler.removeCallbacks(runnable);
         Log.i("ScanService", "搜索停止");
         super.onDestroy();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
     }
 
     /**
@@ -109,14 +100,14 @@ public class ScanService extends Service {
             String linkKeyword = link.text();
             if (keyword.contains(linkKeyword) || linkKeyword.contains(keyword)) {
                 result = link.attr("href");
-//            } else {
-//                document = Jsoup.connect(baiduUrl + URLEncoder.encode(keyword + " site:www.douban.com","UTF-8")).get();
-//                links = document.select("h3.t > a[href]");
-//                link = links.get(0);
-//                linkKeyword = link.text();
-//                if (keyword.contains(linkKeyword) || linkKeyword.contains(keyword)) {
-//                    result = link.attr("href");
-//                }
+            } else {
+                document = Jsoup.connect(baiduUrl + URLEncoder.encode(keyword, "UTF-8")).get();
+                links = document.select("h3.t > a[href]");
+                link = links.get(0);
+                linkKeyword = link.text();
+                if (keyword.contains(linkKeyword) || linkKeyword.contains(keyword)) {
+                    result = link.attr("href");
+                }
 
             }
         } catch (IOException e) {
@@ -139,7 +130,6 @@ public class ScanService extends Service {
                 for (int i = 0; i < boardArray.length(); i++) {
                     String boardName = boardArray.getJSONObject(i).getString("name");
                     mSearchApi.threadByAuthor(boardName, "guitarmega", new searchListener());//根据用户名搜索
-                    Thread.sleep(5000);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -169,9 +159,10 @@ public class ScanService extends Service {
                     final String board = resultThread.getString("board_name");
                     final int id = resultThread.getInt("id");
                     int now = (int) (System.currentTimeMillis() / 1000);
-                    if (now - resultThread.getInt("post_time") < 24 * 3600 * 7) {
+                    if (now - resultThread.getInt("post_time") < scanTime) {
                         //发帖时间小于搜索间隔，找到新帖
                         Log.i("ScanService", "找到新帖！标题：" + title + " 版面：" + board);
+                        Thread.sleep(10000);
                         new Thread(new Runnable() {
                             @Override
                             public void run() {
@@ -189,7 +180,7 @@ public class ScanService extends Service {
 
                     }
                 }
-            } catch (JSONException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -204,7 +195,13 @@ public class ScanService extends Service {
 
         @Override
         public void onComplete(String s) {
-            Log.i("ScanService", "发帖成功");
+            try {
+                JSONObject articleObject = new JSONObject(s);
+                String articleBoard = articleObject.getString("board_name");
+                Log.i("ScanService", "发帖成功，版面：" + articleBoard);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
         }
 
         @Override
