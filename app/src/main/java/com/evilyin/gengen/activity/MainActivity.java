@@ -12,6 +12,7 @@ import android.widget.Toast;
 import com.evilyin.gengen.AccessTokenKeeper;
 import com.evilyin.gengen.R;
 import com.evilyin.gengen.service.MainService;
+import com.evilyin.gengen.service.ScanService;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -49,6 +50,7 @@ public class MainActivity extends Activity {
 
         Button loginButton = (Button) findViewById(R.id.button_login);
         Button goButton = (Button) findViewById(R.id.button_go);
+        Button stopButton = (Button) findViewById(R.id.button_stop);
         userText = (TextView) findViewById(R.id.textview_user);
         mAuth = new BBSAuth(this, appKey, redirectUrl, scope);
 
@@ -71,13 +73,21 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 if (mAccessToken.isSessionValid()) {
-                    startService(new Intent(MainActivity.this, MainService.class));
+                    startService(new Intent(MainActivity.this, ScanService.class));
                 }else {
                     Toast.makeText(MainActivity.this, "请先登录", Toast.LENGTH_SHORT).show();
                 }
             }
         });
 
+        stopButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                stopService(new Intent(MainActivity.this, ScanService.class));
+            }
+        });
+
+        startService(new Intent(this, MainService.class));
     }
 
     class AuthListener implements BBSAuthListener {

@@ -1,7 +1,10 @@
 package com.evilyin.gengen.service;
 
-import android.app.IntentService;
+import android.app.Service;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Message;
 import android.util.Log;
 
 import com.evilyin.gengen.AccessTokenKeeper;
@@ -15,6 +18,9 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import cn.byr.bbs.sdk.api.ArticleApi;
 import cn.byr.bbs.sdk.api.SearchApi;
@@ -30,33 +36,59 @@ import cn.byr.bbs.sdk.net.RequestListener;
  * @since 2015-6-3
  */
 
-public class ScanService extends IntentService {
+public class ScanService extends Service {
 
     private static final String doubanUrl = "http://www.douban.com/group/search?cat=1013&q=";
     private static final String baiduUrl = "http://www.baidu.com/s?wd=";
     private static final int scanTime = 600;//搜索间隔时长（秒）
 
     private Oauth2AccessToken mAccessToken;
+    private Timer timer;
+    private String resultUrl = "";
 
-    /**
-     * Creates an IntentService.  Invoked by your subclass's constructor.
-     */
-    public ScanService() {
-        super("ScanService");
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
     }
 
     @Override
-    protected void onHandleIntent(Intent intent) {
-
+    public void onCreate() {
         Log.i("ScanService", "启动");
 
         mAccessToken = AccessTokenKeeper.readAccessToken(this);
+        final Handler handler = new Handler() {
+            @Override
+            public void handleMessage(Message msg) {
+                if (msg.what == 1) {
+                    SectionApi mSectionApi = new SectionApi(mAccessToken);
+                    mSectionApi.getSection("4", new sectionListener());
+                    mSectionApi.getSection("5", new sectionListener());
+                    mSectionApi.getSection("6", new sectionListener());
+                }
+                super.handleMessage(msg);
+            }
+        };
+        timer = new Timer();
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+                Message message = new Message();
+                message.what = 1;
+                handler.sendMessage(message);
+            }
+        };
+        timer.schedule(task, 1000, scanTime * 1000);
+    }
 
-        SectionApi mSectionApi = new SectionApi(mAccessToken);
-        mSectionApi.getSection("4", new sectionListener());
-        mSectionApi.getSection("5", new sectionListener());
-        mSectionApi.getSection("6", new sectionListener());
-
+    @Override
+    public void onDestroy() {
+        if (timer != null) {
+            timer.cancel();
+            timer = null;
+        }
+        Log.i("ScanService", "搜索停止");
+        super.onDestroy();
     }
 
     /**
@@ -67,21 +99,24 @@ public class ScanService extends IntentService {
      */
     private String search(String keyword) {
         String result = "";
+        if (keyword.length() >= 23) {
+            keyword = keyword.substring(0, 22);
+        }
         try {
-            Document document = Jsoup.connect(doubanUrl + keyword).get();
+            Document document = Jsoup.connect(doubanUrl + URLEncoder.encode(keyword, "UTF-8")).get();
             Elements links = document.select("td.td-subject > a[href]");
             Element link = links.get(0);
             String linkKeyword = link.text();
             if (keyword.contains(linkKeyword) || linkKeyword.contains(keyword)) {
                 result = link.attr("href");
-            } else {
-                document = Jsoup.connect(baiduUrl + keyword + "%20site%3Awww.douban.com").get();
-                links = document.select("h3.t > a[href]");
-                link = links.get(0);
-                linkKeyword = link.text();
-                if (keyword.contains(linkKeyword) || linkKeyword.contains(keyword)) {
-                    result = link.attr("href");
-                }
+//            } else {
+//                document = Jsoup.connect(baiduUrl + URLEncoder.encode(keyword + " site:www.douban.com","UTF-8")).get();
+//                links = document.select("h3.t > a[href]");
+//                link = links.get(0);
+//                linkKeyword = link.text();
+//                if (keyword.contains(linkKeyword) || linkKeyword.contains(keyword)) {
+//                    result = link.attr("href");
+//                }
 
             }
         } catch (IOException e) {
@@ -91,7 +126,7 @@ public class ScanService extends IntentService {
         return result;
     }
 
-    class sectionListener implements RequestListener{
+    class sectionListener implements RequestListener {
 
         @Override
         public void onComplete(String response) {
@@ -102,10 +137,11 @@ public class ScanService extends IntentService {
                 SearchApi mSearchApi = new SearchApi(mAccessToken);
 
                 for (int i = 0; i < boardArray.length(); i++) {
-                    String boardName=boardArray.getJSONObject(i).getString("name");
+                    String boardName = boardArray.getJSONObject(i).getString("name");
                     mSearchApi.threadByAuthor(boardName, "guitarmega", new searchListener());//根据用户名搜索
+                    Thread.sleep(5000);
                 }
-            } catch (JSONException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -116,31 +152,42 @@ public class ScanService extends IntentService {
         }
     }
 
-    class searchListener implements RequestListener{
+    class searchListener implements RequestListener {
 
         @Override
         public void onComplete(String response) {
-            //搜索结果取最新发帖，
+            //搜索结果取最新发帖
             try {
                 JSONObject searchObject = new JSONObject(response);
-                JSONArray searchArray = searchObject.getJSONArray("threads");
-                JSONObject resultThread = searchArray.getJSONObject(0);
-                String title = resultThread.getString("title");
-                String board = resultThread.getString("board_name");
-                int now = (int) (System.currentTimeMillis() / 1000);
-                if (now - resultThread.getInt("post_time") < scanTime) {
-                    //发帖时间小于搜索间隔，找到新帖
-                    Log.i("ScanService", "找到新帖！标题：" + title + " 版面：" + board);
-                    String resultUrl = search(title);
-                    String resultContent = "";
-                    if (!resultUrl.equals("")) {
-                        resultContent = "原帖地址：[url=" + resultUrl + "]" + resultUrl + "[/url]";
-                    }
-                    //发表回复
-                    String content = "楼主sb\n" + resultContent;
-                    ArticleApi mArticleApi = new ArticleApi(mAccessToken);
-                    mArticleApi.reply(board, new articleListener(), "Re: " + title, content, resultThread.getInt("id"));
+                //判断搜索结果是否为空
+                JSONObject pagination = searchObject.getJSONObject("pagination");
+                if (pagination.getInt("item_all_count") != 0) {
+                    //如果不为空，取最新的一帖
+                    JSONArray searchArray = searchObject.getJSONArray("threads");
+                    JSONObject resultThread = searchArray.getJSONObject(0);
+                    final String title = resultThread.getString("title");
+                    final String board = resultThread.getString("board_name");
+                    final int id = resultThread.getInt("id");
+                    int now = (int) (System.currentTimeMillis() / 1000);
+                    if (now - resultThread.getInt("post_time") < 24 * 3600 * 7) {
+                        //发帖时间小于搜索间隔，找到新帖
+                        Log.i("ScanService", "找到新帖！标题：" + title + " 版面：" + board);
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                resultUrl = search(title);
+                                String resultContent = "";
+                                if (!resultUrl.equals("")) {
+                                    resultContent = "原帖地址：[url=" + resultUrl + "]" + resultUrl + "[/url]";
+                                }
+                                //发表回复
+                                String content = "楼主sb\n" + resultContent;
+                                ArticleApi mArticleApi = new ArticleApi(mAccessToken);
+                                mArticleApi.reply(board, new articleListener(), "Re: " + title, content, id);
+                            }
+                        }).start();
 
+                    }
                 }
             } catch (JSONException e) {
                 e.printStackTrace();

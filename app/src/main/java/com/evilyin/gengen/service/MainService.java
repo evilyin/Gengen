@@ -34,7 +34,7 @@ public class MainService extends Service {
         if (info != null && info.isConnected() && info.getType() == ConnectivityManager.TYPE_WIFI) {
             //闹钟：开始
             AlarmManager alarmManager = (AlarmManager) this.getSystemService(ALARM_SERVICE);
-            PendingIntent pendingIntent = PendingIntent.getService(this, 0, new Intent(this, MainService.class), PendingIntent.FLAG_UPDATE_CURRENT);
+            PendingIntent pendingIntent = PendingIntent.getService(this, 0, new Intent(this, ScanService.class), PendingIntent.FLAG_UPDATE_CURRENT);
             Calendar calendar = Calendar.getInstance();
             calendar.set(Calendar.HOUR_OF_DAY, 6);
             calendar.set(Calendar.MINUTE, 50);
@@ -56,12 +56,6 @@ public class MainService extends Service {
             alarmManager2.setRepeating(AlarmManager.RTC_WAKEUP, calendar2.getTimeInMillis(), AlarmManager.INTERVAL_DAY, pendingIntent2);
 
         }
-    }
-
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        startService(new Intent(this, ScanService.class));
-        return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
