@@ -102,13 +102,9 @@ public class ScanService extends Service {
                 result = link.attr("href");
             } else {
                 document = Jsoup.connect(baiduUrl + URLEncoder.encode(keyword, "UTF-8")).get();
-                links = document.select("h3.t > a[href]");
+                links = document.select("div.resitem > a[href]");
                 link = links.get(0);
-                linkKeyword = link.text();
-                if (keyword.contains(linkKeyword) || linkKeyword.contains(keyword)) {
-                    result = link.attr("href");
-                }
-
+                result = link.attr("href");
             }
         } catch (IOException e) {
             e.printStackTrace();
