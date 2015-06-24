@@ -1,14 +1,21 @@
 package com.evilyin.gengen.service;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Handler;
 import android.os.IBinder;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import com.evilyin.gengen.AccessTokenKeeper;
+import com.evilyin.gengen.activity.MainActivity;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -43,6 +50,8 @@ public class ScanService extends Service {
 
     private Oauth2AccessToken mAccessToken;
     private String resultUrl = "";
+    private Context mContext;
+    private ConnectivityManager mConnectivityManager;
 
     Handler handler =new Handler();
     Runnable runnable=new Runnable() {
@@ -60,10 +69,11 @@ public class ScanService extends Service {
     @Override
     public void onCreate() {
         Log.i("ScanService", "启动");
+        mContext = this;
         mAccessToken = AccessTokenKeeper.readAccessToken(this);
 
-        ConnectivityManager connectivityManager = (ConnectivityManager) this.getSystemService(CONNECTIVITY_SERVICE);
-        NetworkInfo info = connectivityManager.getActiveNetworkInfo();
+        mConnectivityManager = (ConnectivityManager) this.getSystemService(CONNECTIVITY_SERVICE);
+        NetworkInfo info = mConnectivityManager.getActiveNetworkInfo();
         //判断wifi是否可用
         if (info != null && info.isConnected() && info.getType() == ConnectivityManager.TYPE_WIFI) {
             handler.post(runnable);
@@ -71,8 +81,16 @@ public class ScanService extends Service {
     }
 
     @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        return START_NOT_STICKY;
+    }
+
+    @Override
     public void onDestroy() {
         handler.removeCallbacks(runnable);
+        if (mConnectivityManager != null) {
+            mConnectivityManager = null;
+        }
         Log.i("ScanService", "搜索停止");
         super.onDestroy();
     }
@@ -104,7 +122,9 @@ public class ScanService extends Service {
                 document = Jsoup.connect(baiduUrl + URLEncoder.encode(keyword, "UTF-8")).get();
                 links = document.select("div.resitem > a[href]");
                 link = links.get(0);
-                result = link.attr("href");
+                String bdUrl = link.attr("href");
+                Document document1 = Jsoup.connect(bdUrl).get();
+                result = document1.location();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -195,6 +215,24 @@ public class ScanService extends Service {
                 JSONObject articleObject = new JSONObject(s);
                 String articleBoard = articleObject.getString("board_name");
                 Log.i("ScanService", "发帖成功，版面：" + articleBoard);
+
+                //发帖结果保存至SP
+                SharedPreferences preferences = mContext.getSharedPreferences("bbs_post_result", MODE_APPEND);
+                SharedPreferences.Editor editor=preferences.edit();
+                editor.putString("title", articleObject.getString("title"));
+                editor.putString("board", articleBoard);
+                editor.apply();
+
+                //通知
+                NotificationManager notificationManager = (NotificationManager) mContext.getSystemService(NOTIFICATION_SERVICE);
+                NotificationCompat.Builder builder = new NotificationCompat.Builder(mContext);
+                PendingIntent pendingIntent = PendingIntent.getActivity(mContext, 1, new Intent(mContext, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+                builder.setContentTitle("跟跟")
+                        .setContentText("sb又犯贱了")
+                        .setContentIntent(pendingIntent);
+                Notification notification = builder.build();
+                notification.flags = Notification.FLAG_AUTO_CANCEL;
+                notificationManager.notify(1, notification);
             } catch (JSONException e) {
                 e.printStackTrace();
             }

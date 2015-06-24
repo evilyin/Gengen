@@ -5,7 +5,7 @@ android {
         bbs {
             keyAlias 'evilyin'
             keyPassword '4294967296'
-            storeFile file('C:\\working\\Gengen\\app\\evilyin_keystore.jks')
+            storeFile file('C:\\Users\\Chenzhixi\\AndroidstudioProjects\\Gengen\\app\\evilyin_keystore.jks')
             storePassword '4294967296'
         }
     }

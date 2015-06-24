@@ -7,5 +7,6 @@
     <string name="bbsDemo_oauth_failed">登录失败</string>
     <string name="bbsDemo_oauth_canceled">取消登录</string>
     <string name="stop">开发者选项：停止服务</string>
+    <string name="clear">清除记录</string>
 
 </resources>

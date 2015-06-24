@@ -39,6 +39,15 @@
             android:exported="false" >
         </service>
 
+        <receiver
+            android:name=".receiver.StopReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.evilyin.stop"/>
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

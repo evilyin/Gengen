@@ -2,6 +2,7 @@ package com.evilyin.gengen.activity;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -51,7 +52,9 @@ public class MainActivity extends Activity {
         Button loginButton = (Button) findViewById(R.id.button_login);
         Button goButton = (Button) findViewById(R.id.button_go);
         Button stopButton = (Button) findViewById(R.id.button_stop);
+        Button clearButton = (Button) findViewById(R.id.button_clear);
         userText = (TextView) findViewById(R.id.textview_user);
+        TextView resultText = (TextView) findViewById(R.id.textview_result);
         mAuth = new BBSAuth(this, appKey, redirectUrl, scope);
 
         //获取已存储的登录信息
@@ -60,6 +63,10 @@ public class MainActivity extends Activity {
             setUserText();
             loginButton.setClickable(false);
         }
+
+        //获取发帖结果
+        final SharedPreferences preferences = this.getSharedPreferences("bbs_post_result", MODE_APPEND);
+        resultText.setText(String.format("已发帖：\n标题：%1$s\n版面：%2$s", preferences.getString("title", ""), preferences.getString("board", "")));
 
         loginButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -87,6 +94,15 @@ public class MainActivity extends Activity {
             }
         });
 
+        clearButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                SharedPreferences.Editor editor = preferences.edit();
+                editor.putString("title", "");
+                editor.putString("board", "");
+                editor.apply();
+            }
+        });
         startService(new Intent(this, MainService.class));
     }
 
