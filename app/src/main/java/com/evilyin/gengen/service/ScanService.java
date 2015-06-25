@@ -1,21 +1,11 @@
 package com.evilyin.gengen.service;
 
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.app.Service;
-import android.content.Context;
+import android.app.IntentService;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.os.Handler;
-import android.os.IBinder;
-import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import com.evilyin.gengen.AccessTokenKeeper;
-import com.evilyin.gengen.activity.MainActivity;
+import com.evilyin.gengen.AppManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -42,64 +32,32 @@ import cn.byr.bbs.sdk.net.RequestListener;
  * @since 2015-6-3
  */
 
-public class ScanService extends Service {
+public class ScanService extends IntentService {
 
     private static final String doubanUrl = "http://www.douban.com/group/search?cat=1013&q=";
     private static final String baiduUrl = "http://www.baidu.com/s?wd=";
-    private static final int scanTime = 600;//搜索间隔时长（秒）
+
 
     private Oauth2AccessToken mAccessToken;
     private String resultUrl = "";
-    private Context mContext;
-    private ConnectivityManager mConnectivityManager;
 
-    Handler handler =new Handler();
-    Runnable runnable=new Runnable() {
-        @Override
-        public void run() {
-            handler.postDelayed(this, scanTime * 1000);
 
-            SectionApi mSectionApi = new SectionApi(mAccessToken);
-            mSectionApi.getSection("4", new sectionListener());
-            mSectionApi.getSection("5", new sectionListener());
-            mSectionApi.getSection("6", new sectionListener());
-            SearchApi searchApi = new SearchApi(mAccessToken);
-            searchApi.threadByAuthor("FamilyLife", "guitarmega", new searchListener());
-        }
-    };
+    public ScanService() {
+        super("ScanService");
+    }
+
 
     @Override
-    public void onCreate() {
+    protected void onHandleIntent(Intent intent) {
         Log.i("ScanService", "启动");
-        mContext = this;
         mAccessToken = AccessTokenKeeper.readAccessToken(this);
-
-        mConnectivityManager = (ConnectivityManager) this.getSystemService(CONNECTIVITY_SERVICE);
-        NetworkInfo info = mConnectivityManager.getActiveNetworkInfo();
-        //判断wifi是否可用
-        if (info != null && info.isConnected() && info.getType() == ConnectivityManager.TYPE_WIFI) {
-            handler.post(runnable);
-        }
-    }
-
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        return START_NOT_STICKY;
-    }
-
-    @Override
-    public void onDestroy() {
-        handler.removeCallbacks(runnable);
-        if (mConnectivityManager != null) {
-            mConnectivityManager = null;
-        }
-        Log.i("ScanService", "搜索停止");
-        super.onDestroy();
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
+        SectionApi mSectionApi = new SectionApi(mAccessToken);
+        mSectionApi.getSection("4", new sectionListener());
+        mSectionApi.getSection("5", new sectionListener());
+        mSectionApi.getSection("6", new sectionListener());
+        SearchApi searchApi = new SearchApi(mAccessToken);
+        searchApi.threadByAuthor("FamilyLife", "guitarmega", new searchListener());
+        searchApi.threadByAuthor("Football", "guitarmega", new searchListener());
     }
 
     /**
@@ -126,9 +84,11 @@ public class ScanService extends Service {
                 link = links.get(0);
                 String bdUrl = link.attr("href");
                 Document document1 = Jsoup.connect(bdUrl).get();
-                String bdresult=document1.location();
+                String bdresult = document1.location();
                 if (bdresult.startsWith("http://m.baidu.com")) {
                     result = bdresult.substring(33, bdresult.indexOf("&word"));
+                } else if (bdresult.startsWith("http://www.douban.com")) {
+                    result = bdresult.substring(0, 43);
                 } else {
                     result = bdresult;
                 }
@@ -182,22 +142,26 @@ public class ScanService extends Service {
                     final String board = resultThread.getString("board_name");
                     final int id = resultThread.getInt("id");
                     int now = (int) (System.currentTimeMillis() / 1000);
-                    if (now - resultThread.getInt("post_time") < scanTime) {
+                    if (now - resultThread.getInt("post_time") < AppManager.scanTime + 60) {
                         //发帖时间小于搜索间隔，找到新帖
                         Log.i("ScanService", "找到新帖！标题：" + title + " 版面：" + board);
-                        Thread.sleep(10000);
                         new Thread(new Runnable() {
                             @Override
                             public void run() {
-                                resultUrl = search(title);
-                                String resultContent = "";
-                                if (!resultUrl.equals("")) {
-                                    resultContent = "原帖地址：[url=" + resultUrl + "]" + resultUrl + "[/url]";
+                                try {
+                                    Thread.sleep(10000);
+                                    resultUrl = search(title);
+                                    String resultContent = "";
+                                    if (!resultUrl.equals("")) {
+                                        resultContent = "原帖地址：[url=" + resultUrl + "]" + resultUrl + "[/url]";
+                                    }
+                                    //发表回复
+                                    String content = "楼主sb\n" + resultContent;
+                                    ArticleApi mArticleApi = new ArticleApi(mAccessToken);
+                                    mArticleApi.reply(board, new articleListener(), "Re: " + title, content, id);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
                                 }
-                                //发表回复
-                                String content = "楼主sb\n" + resultContent;
-                                ArticleApi mArticleApi = new ArticleApi(mAccessToken);
-                                mArticleApi.reply(board, new articleListener(), "Re: " + title, content, id);
                             }
                         }).start();
 
@@ -223,23 +187,8 @@ public class ScanService extends Service {
                 String articleBoard = articleObject.getString("board_name");
                 Log.i("ScanService", "发帖成功，版面：" + articleBoard);
 
-                //发帖结果保存至SP
-                SharedPreferences preferences = mContext.getSharedPreferences("bbs_post_result", MODE_APPEND);
-                SharedPreferences.Editor editor=preferences.edit();
-                editor.putString("title", articleObject.getString("title"));
-                editor.putString("board", articleBoard);
-                editor.apply();
+                AppManager.list.add(articleBoard);
 
-                //通知
-                NotificationManager notificationManager = (NotificationManager) mContext.getSystemService(NOTIFICATION_SERVICE);
-                NotificationCompat.Builder builder = new NotificationCompat.Builder(mContext);
-                PendingIntent pendingIntent = PendingIntent.getActivity(mContext, 1, new Intent(mContext, MainActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
-                builder.setContentTitle("跟跟")
-                        .setContentText("sb又犯贱了")
-                        .setContentIntent(pendingIntent);
-                Notification notification = builder.build();
-                notification.flags = Notification.FLAG_AUTO_CANCEL;
-                notificationManager.notify(1, notification);
             } catch (JSONException e) {
                 e.printStackTrace();
             }

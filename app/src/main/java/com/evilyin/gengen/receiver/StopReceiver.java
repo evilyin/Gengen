@@ -5,7 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
-import com.evilyin.gengen.service.ScanService;
+import com.evilyin.gengen.service.MainService;
 
 /**
  * @author evilyin(ChenZhixi)
@@ -17,6 +17,6 @@ public class StopReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         Log.i("StopReceiver", "收到停止广播");
-        context.stopService(new Intent(context, ScanService.class));
+        context.stopService(new Intent(context, MainService.class));
     }
 }

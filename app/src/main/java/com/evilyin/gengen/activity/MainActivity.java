@@ -11,15 +11,16 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.evilyin.gengen.AccessTokenKeeper;
+import com.evilyin.gengen.AppManager;
 import com.evilyin.gengen.R;
 import com.evilyin.gengen.service.MainService;
-import com.evilyin.gengen.service.ScanService;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Locale;
 
 import cn.byr.bbs.sdk.api.UserApi;
@@ -31,6 +32,7 @@ import cn.byr.bbs.sdk.net.RequestListener;
 
 /**
  * 主界面
+ *
  * @author evilyin(ChenZhixi)
  * @since 2015-5-28
  */
@@ -52,7 +54,6 @@ public class MainActivity extends Activity {
         Button loginButton = (Button) findViewById(R.id.button_login);
         Button goButton = (Button) findViewById(R.id.button_go);
         Button stopButton = (Button) findViewById(R.id.button_stop);
-        Button clearButton = (Button) findViewById(R.id.button_clear);
         userText = (TextView) findViewById(R.id.textview_user);
         TextView resultText = (TextView) findViewById(R.id.textview_result);
         mAuth = new BBSAuth(this, appKey, redirectUrl, scope);
@@ -66,7 +67,7 @@ public class MainActivity extends Activity {
 
         //获取发帖结果
         final SharedPreferences preferences = this.getSharedPreferences("bbs_post_result", MODE_APPEND);
-        resultText.setText(String.format("已发帖：\n标题：%1$s\n版面：%2$s", preferences.getString("title", ""), preferences.getString("board", "")));
+        resultText.setText("已发帖版面：" + preferences.getStringSet("list",new HashSet<String>()));
 
         loginButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -80,8 +81,8 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 if (mAccessToken.isSessionValid()) {
-                    startService(new Intent(MainActivity.this, ScanService.class));
-                }else {
+                    startService(new Intent(MainActivity.this, MainService.class));
+                } else {
                     Toast.makeText(MainActivity.this, "请先登录", Toast.LENGTH_SHORT).show();
                 }
             }
@@ -90,20 +91,11 @@ public class MainActivity extends Activity {
         stopButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                stopService(new Intent(MainActivity.this, ScanService.class));
+                stopService(new Intent(MainActivity.this, MainService.class));
             }
         });
 
-        clearButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                SharedPreferences.Editor editor = preferences.edit();
-                editor.putString("title", "");
-                editor.putString("board", "");
-                editor.apply();
-            }
-        });
-        startService(new Intent(this, MainService.class));
+        AppManager.registerAlarm(this);
     }
 
     class AuthListener implements BBSAuthListener {
