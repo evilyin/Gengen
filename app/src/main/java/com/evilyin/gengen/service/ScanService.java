@@ -63,6 +63,8 @@ public class ScanService extends Service {
             mSectionApi.getSection("4", new sectionListener());
             mSectionApi.getSection("5", new sectionListener());
             mSectionApi.getSection("6", new sectionListener());
+            SearchApi searchApi = new SearchApi(mAccessToken);
+            searchApi.threadByAuthor("FamilyLife", "guitarmega", new searchListener());
         }
     };
 
@@ -124,7 +126,12 @@ public class ScanService extends Service {
                 link = links.get(0);
                 String bdUrl = link.attr("href");
                 Document document1 = Jsoup.connect(bdUrl).get();
-                result = document1.location();
+                String bdresult=document1.location();
+                if (bdresult.startsWith("http://m.baidu.com")) {
+                    result = bdresult.substring(33, bdresult.indexOf("&word"));
+                } else {
+                    result = bdresult;
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
