@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
@@ -18,6 +19,9 @@ import com.evilyin.gengen.service.MainService;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashSet;
@@ -46,6 +50,15 @@ public class MainActivity extends Activity {
     private BBSAuth mAuth;
     private Oauth2AccessToken mAccessToken;
 
+    TextView logText;
+    String str ;
+    Handler handler = new Handler();
+    Runnable runnable=new Runnable() {
+        @Override
+        public void run() {
+            logText.setText(str);
+        }
+    };
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,6 +70,8 @@ public class MainActivity extends Activity {
         userText = (TextView) findViewById(R.id.textview_user);
         TextView resultText = (TextView) findViewById(R.id.textview_result);
         mAuth = new BBSAuth(this, appKey, redirectUrl, scope);
+        Button logButton = (Button) findViewById(R.id.button_log);
+        logText = (TextView) findViewById(R.id.textview_log);
 
         //获取已存储的登录信息
         mAccessToken = AccessTokenKeeper.readAccessToken(this);
@@ -92,6 +107,32 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 stopService(new Intent(MainActivity.this, MainService.class));
+            }
+        });
+
+        logButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new Thread(){
+                    public void run() {
+                        try {
+                            Process process = Runtime.getRuntime().exec("logcat -v long MainService:I ScanService:I StopReceiver:I search:I *:S");
+                            InputStream is = process.getInputStream();
+                            BufferedReader br = new BufferedReader(new InputStreamReader(is));
+
+                            StringBuilder log=new StringBuilder();
+                            String line;
+                            while((line = br.readLine()) != null) {
+                                log.append(line);
+                                str=log.toString();
+                                handler.post(runnable);
+                            }
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }.start();
             }
         });
 

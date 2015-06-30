@@ -142,7 +142,7 @@ public class ScanService extends IntentService {
                     final String board = resultThread.getString("board_name");
                     final int id = resultThread.getInt("id");
                     int now = (int) (System.currentTimeMillis() / 1000);
-                    if (now - resultThread.getInt("post_time") < AppManager.scanTime + 60) {
+                    if (now - resultThread.getInt("post_time") < AppManager.scanTime * 2) {
                         //发帖时间小于搜索间隔，找到新帖
                         Log.i("ScanService", "找到新帖！标题：" + title + " 版面：" + board);
                         new Thread(new Runnable() {
@@ -156,7 +156,7 @@ public class ScanService extends IntentService {
                                         resultContent = "原帖地址：[url=" + resultUrl + "]" + resultUrl + "[/url]";
                                     }
                                     //发表回复
-                                    String content = "楼主sb\n" + resultContent;
+                                    String content = "sb楼主又来犯贱了\n" + resultContent;
                                     ArticleApi mArticleApi = new ArticleApi(mAccessToken);
                                     mArticleApi.reply(board, new articleListener(), "Re: " + title, content, id);
                                 } catch (InterruptedException e) {
