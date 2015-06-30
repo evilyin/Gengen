@@ -70,7 +70,6 @@ public class MainActivity extends Activity {
         userText = (TextView) findViewById(R.id.textview_user);
         TextView resultText = (TextView) findViewById(R.id.textview_result);
         mAuth = new BBSAuth(this, appKey, redirectUrl, scope);
-        Button logButton = (Button) findViewById(R.id.button_log);
         logText = (TextView) findViewById(R.id.textview_log);
 
         //获取已存储的登录信息
@@ -110,32 +109,29 @@ public class MainActivity extends Activity {
             }
         });
 
-        logButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                new Thread(){
-                    public void run() {
-                        try {
-                            Process process = Runtime.getRuntime().exec("logcat -v long MainService:I ScanService:I StopReceiver:I search:I *:S");
-                            InputStream is = process.getInputStream();
-                            BufferedReader br = new BufferedReader(new InputStreamReader(is));
+        //显示log
+        new Thread(){
+            public void run() {
+                try {
+                    Process process = Runtime.getRuntime().exec("logcat -v long MainService:I ScanService:I StopReceiver:I search:I *:S");
+                    InputStream is = process.getInputStream();
+                    BufferedReader br = new BufferedReader(new InputStreamReader(is));
 
-                            StringBuilder log=new StringBuilder();
-                            String line;
-                            while((line = br.readLine()) != null) {
-                                log.append(line);
-                                str=log.toString();
-                                handler.post(runnable);
-                            }
-
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
+                    StringBuilder log=new StringBuilder();
+                    String line;
+                    while((line = br.readLine()) != null) {
+                        line = line + "\n";
+                        log.append(line);
+                        str = log.toString();
+                        handler.post(runnable);
                     }
-                }.start();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
-        });
+        }.start();
 
+        //注册闹钟
         AppManager.registerAlarm(this);
     }
 
