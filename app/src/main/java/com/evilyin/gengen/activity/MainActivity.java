@@ -82,6 +82,13 @@ public class MainActivity extends Activity {
         //获取发帖结果
         final SharedPreferences preferences = this.getSharedPreferences("bbs_post_result", MODE_APPEND);
         resultText.setText("已发帖版面：" + preferences.getStringSet("list",new HashSet<String>()));
+        boolean isFirstRun=preferences.getBoolean("is_first_run",true);
+        if (isFirstRun) {
+            AppManager.registerAlarm(this);
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putBoolean("is_first_run", false);
+            editor.apply();
+        }
 
         loginButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -131,8 +138,6 @@ public class MainActivity extends Activity {
             }
         }.start();
 
-        //注册闹钟
-        AppManager.registerAlarm(this);
     }
 
     class AuthListener implements BBSAuthListener {
