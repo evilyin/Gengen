@@ -1,5 +1,6 @@
 package com.evilyin.gengen.service;
 
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -8,7 +9,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.Handler;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
@@ -34,15 +34,8 @@ public class MainService extends Service {
     private ConnectivityManager mConnectivityManager;
     private Oauth2AccessToken mAccessToken;
 
-    Handler handler = new Handler();
-    Runnable runnable = new Runnable() {
-        @Override
-        public void run() {
-            handler.postDelayed(this, AppManager.scanTime * 1000);
-            startService(new Intent(MainService.this, ScanService.class));
-            Log.i("MainService", "发出启动搜索intent");
-        }
-    };
+    private AlarmManager mAlarmManager;
+    private PendingIntent pendingIntent;
 
     @Override
     public void onCreate() {
@@ -51,28 +44,30 @@ public class MainService extends Service {
         if (AppManager.list != null) {
             AppManager.list.clear();
         }
-    }
-
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+        mAlarmManager = (AlarmManager) this.getSystemService(ALARM_SERVICE);
+        pendingIntent = PendingIntent.getService(this, 2, new Intent(this, ScanService.class), PendingIntent.FLAG_UPDATE_CURRENT);
         mConnectivityManager = (ConnectivityManager) this.getSystemService(CONNECTIVITY_SERVICE);
         NetworkInfo info = mConnectivityManager.getActiveNetworkInfo();
         //判断wifi是否可用
         if (info != null && info.isConnected() && info.getType() == ConnectivityManager.TYPE_WIFI) {
-            handler.post(runnable);
+            mAlarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), AppManager.scanTime * 1000, pendingIntent);
+            Log.i("MainService", "闹钟设置完毕");
             //todo 鉴权，延长token期限
         }
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
         return START_NOT_STICKY;
     }
 
     @Override
     public void onDestroy() {
         //取消任务
-        handler.removeCallbacks(runnable);
-        handler = null;
         if (mConnectivityManager != null) {
             mConnectivityManager = null;
         }
+        mAlarmManager.cancel(pendingIntent);
         //存储结果
         if (AppManager.list != null) {
             SharedPreferences preferences = this.getSharedPreferences("bbs_post_result", MODE_APPEND);
