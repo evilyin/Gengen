@@ -145,11 +145,10 @@ public class ScanService extends IntentService {
                     if (now - resultThread.getInt("post_time") < AppManager.scanTime + 60) {
                         //发帖时间小于搜索间隔，找到新帖
                         Log.i("ScanService", "找到新帖！标题：" + title + " 版面：" + board);
+                        Thread.sleep(10000);
                         new Thread(new Runnable() {
                             @Override
                             public void run() {
-                                try {
-                                    Thread.sleep(10000);
                                     resultUrl = search(title);
                                     String resultContent = "";
                                     if (!resultUrl.equals("")) {
@@ -159,9 +158,6 @@ public class ScanService extends IntentService {
                                     String content = "sb楼主又来犯贱了\n" + resultContent;
                                     ArticleApi mArticleApi = new ArticleApi(mAccessToken);
                                     mArticleApi.reply(board, new articleListener(), "Re: " + title, content, id);
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
                             }
                         }).start();
 
