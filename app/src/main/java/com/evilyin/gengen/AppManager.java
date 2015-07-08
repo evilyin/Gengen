@@ -4,6 +4,7 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 
 import com.evilyin.gengen.receiver.StopReceiver;
 import com.evilyin.gengen.service.MainService;
@@ -18,7 +19,9 @@ import java.util.Set;
  */
 public class AppManager {
     public static Set<String> list = new HashSet<>();
-    public static final int scanTime = 600;//搜索间隔时长（秒）
+    public static int scanTime = 600;//搜索间隔时长（秒）
+    public static String content="";//发帖内容第一行
+    public static boolean sendmail=true;//是否发送站内信
 
     public static void registerAlarm(Context context) {
         //闹钟：开始
@@ -45,5 +48,12 @@ public class AppManager {
         alarmManager2.setRepeating(AlarmManager.RTC_WAKEUP, calendar2.getTimeInMillis(), AlarmManager.INTERVAL_DAY, pendingIntent2);
 
 
+    }
+
+    public static void loadSettings(Context context) {
+        SharedPreferences preferences = context.getSharedPreferences("settings", Context.MODE_APPEND);
+        scanTime = preferences.getInt("scantime", 600);
+        content = preferences.getString("content", "sb楼主又来犯贱了");
+        sendmail = preferences.getBoolean("sendmail", true);
     }
 }

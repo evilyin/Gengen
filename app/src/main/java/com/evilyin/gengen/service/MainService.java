@@ -41,6 +41,7 @@ public class MainService extends Service {
     public void onCreate() {
         Log.i("MainService", "主服务启动");
         mAccessToken = AccessTokenKeeper.readAccessToken(this);
+        AppManager.loadSettings(this);
         if (AppManager.list != null) {
             AppManager.list.clear();
         }
@@ -88,8 +89,10 @@ public class MainService extends Service {
                 notificationManager.notify(1, notification);
 
                 //站内信
-                MailApi mailApi = new MailApi(mAccessToken);
-                mailApi.send("chihiro2B", "李老湿又犯贱了", "以下版面有帖子：" + AppManager.list, 0, 0, listener);
+                if (AppManager.sendmail) {
+                    MailApi mailApi = new MailApi(mAccessToken);
+                    mailApi.send("chihiro2B", "李老湿又犯贱了", "以下版面有帖子：" + AppManager.list, 0, 0, listener);
+                }
             }
         }
         Log.i("MainService", "主服务停止");

@@ -8,5 +8,14 @@
     <string name="bbsDemo_oauth_canceled">取消登录</string>
     <string name="stop">开发者选项：停止服务</string>
     <string name="clear">清除记录</string>
+    <string name="title_activity_settings">settings</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="settings">设置</string>
+    <string name="settings_content">发帖内容：</string>
+    <string name="settings_content_hint">留空默认“sb楼主又来犯贱了”</string>
+    <string name="settings_scantime">搜索间隔（秒）</string>
+    <string name="settings_scantime_hint">留空默认600秒</string>
+    <string name="settings_button_save">保存</string>
+    <string name="settings_sendMail">发送站内信</string>
 
 </resources>
