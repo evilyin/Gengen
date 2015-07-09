@@ -145,7 +145,7 @@ public class ScanService extends IntentService {
                     if (now - resultThread.getInt("post_time") < AppManager.scanTime + 60) {
                         //发帖时间小于搜索间隔，找到新帖
                         Log.i("ScanService", "找到新帖！标题：" + title + " 版面：" + board);
-                        Thread.sleep(6000);
+                        Thread.sleep(8000);
                         new Thread(new Runnable() {
                             @Override
                             public void run() {
