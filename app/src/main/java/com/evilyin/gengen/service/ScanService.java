@@ -39,7 +39,7 @@ public class ScanService extends IntentService {
 
 
     private Oauth2AccessToken mAccessToken;
-    private String resultUrl = "";
+    private String resultContent = "";
 
 
     public ScanService() {
@@ -52,12 +52,13 @@ public class ScanService extends IntentService {
         Log.i("ScanService", "启动");
         mAccessToken = AccessTokenKeeper.readAccessToken(this);
         SectionApi mSectionApi = new SectionApi(mAccessToken);
+        mSectionApi.getSection("3", new sectionListener());
         mSectionApi.getSection("4", new sectionListener());
         mSectionApi.getSection("5", new sectionListener());
         mSectionApi.getSection("6", new sectionListener());
         SearchApi searchApi = new SearchApi(mAccessToken);
-        searchApi.threadByAuthor("FamilyLife", "guitarmega", new searchListener());
         searchApi.threadByAuthor("Football", "guitarmega", new searchListener());
+        searchApi.threadByAuthor("Dota", "fuking", new searchListener());
     }
 
     /**
@@ -112,7 +113,8 @@ public class ScanService extends IntentService {
 
                 for (int i = 0; i < boardArray.length(); i++) {
                     String boardName = boardArray.getJSONObject(i).getString("name");
-                    mSearchApi.threadByAuthor(boardName, "guitarmega", new searchListener());//根据用户名搜索
+                    mSearchApi.threadByAuthor(boardName, "guitarmega", new searchListener());
+                    mSearchApi.threadByAuthor(boardName, "fuking", new searchListener());//根据用户名搜索
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -145,12 +147,12 @@ public class ScanService extends IntentService {
                     if (now - resultThread.getInt("post_time") < AppManager.scanTime + 60) {
                         //发帖时间小于搜索间隔，找到新帖
                         Log.i("ScanService", "找到新帖！标题：" + title + " 版面：" + board);
-                        Thread.sleep(8000);
+                        Thread.sleep(10000);
+
                         new Thread(new Runnable() {
                             @Override
                             public void run() {
-                                resultUrl = search(title);
-                                String resultContent = "";
+                                String resultUrl = search(title);
                                 if (!resultUrl.equals("")) {
                                     resultContent = "原帖地址：[url=" + resultUrl + "]" + resultUrl + "[/url]";
                                 }
